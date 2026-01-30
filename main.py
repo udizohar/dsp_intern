@@ -2,36 +2,12 @@ import cv2
 import os
 import numpy as np
 
-def load_video(input_dir, video_name, output_dir):
-    video_path = os.path.join(input_dir, video_name)
-    cap = cv2.VideoCapture(video_path)
-
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    duration_sec = frame_count / fps if fps > 0 else None
-
-    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
-    print("Resolution:", width, "x", height)
-    print("fps = ", fps)
-
-    frame_idx = 0
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-
-        frame_filename = os.path.join(output_dir, f"frame_{frame_idx:06d}.png")
-        cv2.imwrite(frame_filename, frame)
-        frame_idx += 1
-
-    cap.release()
-    print(f"Saved {frame_idx} frames")
-
+from utils import load_video, draw_pairs
 
 def get_motion_two_images(K, img_first, img_second):
     first_gray = cv2.cvtColor(img_first, cv2.COLOR_BGR2GRAY)
+    #Shi-Tomasi Detector in default
+    #useHarrisDetector=True
     first_pts = cv2.goodFeaturesToTrack(first_gray, maxCorners=3000, qualityLevel=0.01, minDistance=7)
 
     R = np.eye(3, dtype=np.float64)
@@ -82,9 +58,9 @@ def get_motion_two_images(K, img_first, img_second):
     prev_gray = gray
     prev_pts = p1.reshape(-1, 1, 2).astype(np.float32)
     '''
+    return p0, p1
 
 
-    return 100, 200
 
 if __name__ == '__main__':
     input_dir = "video_input"
@@ -109,6 +85,6 @@ if __name__ == '__main__':
     img_first = cv2.imread(first_image_path)
     img_second = cv2.imread(second_image_path)
 
-    x, y = get_motion_two_images(K, img_first, img_second)
+    p0, p1 = get_motion_two_images(K, img_first, img_second)
+    draw_pairs(img_first, img_second, p0, p1)
 
-    print(x,y)
