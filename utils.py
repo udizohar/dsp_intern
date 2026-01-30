@@ -40,7 +40,7 @@ def show_bgr(title, img_bgr):
     plt.show()
 
 
-def draw_pairs(img_first, img_second, p0, p1, max_lines=3000):
+def draw_pairs(img_first, img_second, p0, p1, is_horizontal, max_lines=3000):
     # Make sure points are int
     p0 = p0.astype(int)
     p1 = p1.astype(int)
@@ -49,22 +49,26 @@ def draw_pairs(img_first, img_second, p0, p1, max_lines=3000):
     h2, w2 = img_second.shape[:2]
 
     #horizontal:
-    canvas = np.zeros((max(h1, h2), w1 + w2, 3), dtype=np.uint8)
-    canvas[:h1, :w1] = img_first
-    canvas[:h2, w1:w1 + w2] = img_second
+    if is_horizontal:
+        canvas = np.zeros((max(h1, h2), w1 + w2, 3), dtype=np.uint8)
+        canvas[:h1, :w1] = img_first
+        canvas[:h2, w1:w1 + w2] = img_second
 
     #vertical:
-    #canvas = np.zeros((h1 + h2, max(w1, w2), 3), dtype=np.uint8)
-    #canvas[:h1, :w1] = img_first
-    #canvas[h1:h1 + h2, :w2] = img_second
+    else:
+        canvas = np.zeros((h1 + h2, max(w1, w2), 3), dtype=np.uint8)
+        canvas[:h1, :w1] = img_first
+        canvas[h1:h1 + h2, :w2] = img_second
 
     # Optional: limit number of lines for clarity
     n = min(len(p0), max_lines)
 
     for i in range(n):
         pt1 = tuple(p0[i])
-        #pt2 = (p1[i][0] + w1, p1[i][1]) #horizontal
-        pt2 = (p1[i][0], p1[i][1] + h1) #vertical
+        if is_horizontal:
+            pt2 = (p1[i][0] + w1, p1[i][1])  # horizontal
+        else:
+            pt2 = (p1[i][0], p1[i][1] + h1) #vertical
 
         cv2.circle(canvas, pt1, 3, (0, 255, 0), -1)
         cv2.circle(canvas, pt2, 3, (0, 255, 0), -1)

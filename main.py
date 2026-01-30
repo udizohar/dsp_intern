@@ -34,13 +34,33 @@ def get_motion_two_images(K, img_first, img_second):
     p0 = p0[good]
     p1 = p1[good]
 
+
     # Essential matrix with RANSAC
+
+    #with undistortion
+    p0n = cv2.undistortPoints(p0.reshape(-1, 1, 2), K, None).reshape(-1, 2)
+    p1n = cv2.undistortPoints(p1.reshape(-1, 1, 2), K, None).reshape(-1, 2)
+
+    E, inliers = cv2.findEssentialMat(p0n, p1n, np.eye(3), method=cv2.RANSAC, prob=0.999, threshold=1e-3)
+    inl = inliers.ravel().astype(bool)
+    p0ni = p0n[inl].astype(np.float64)
+    p1ni = p1n[inl].astype(np.float64)
+    _, R_rel, t_rel, pose_inliers = cv2.recoverPose(E, p0ni, p1ni, K)
+
+
+    #without undistortion
     E, inliers = cv2.findEssentialMat(p0, p1, K, method=cv2.RANSAC, prob=0.999, threshold=1.0)
+    inl = inliers.ravel().astype(bool)
+    p0i = p0[inl].astype(np.float64)
+    p1i = p1[inl].astype(np.float64)
+    _, R_rel, t_rel, pose_inliers = cv2.recoverPose(E, p0i, p1i, K)
+
     if E is None:
         return 0,0
 
+
     # Recover pose
-    _, R_rel, t_rel, pose_inliers = cv2.recoverPose(E, p0, p1, K, mask=inliers)
+    #_, R_rel, t_rel, pose_inliers = cv2.recoverPose(E, p0, p1, K, mask=inliers)
 
     # IMPORTANT: t_rel has unknown scale. You can set scale=1, or estimate scale externally.
     scale = 1.0
@@ -79,12 +99,12 @@ if __name__ == '__main__':
     recording_folder_name = "1"
     folder_path = os.path.join(output_dir, recording_folder_name)
     first_frame_idx = 0
-    second_frame_idx = 1
+    second_frame_idx = 1 # !!!!!!!!!!!!!!!!!!!
     first_image_path = os.path.join(folder_path, f"frame_{first_frame_idx:06d}.png")
     second_image_path = os.path.join(folder_path, f"frame_{second_frame_idx:06d}.png")
     img_first = cv2.imread(first_image_path)
     img_second = cv2.imread(second_image_path)
 
     p0, p1 = get_motion_two_images(K, img_first, img_second)
-    draw_pairs(img_first, img_second, p0, p1)
+    draw_pairs(img_first, img_second, p0, p1, is_horizontal=False)
 
