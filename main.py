@@ -2,7 +2,8 @@ import cv2
 import os
 import numpy as np
 
-from utils import load_video, draw_pairs, show_bgr
+from utils import load_video, draw_pairs, show_bgr, make_point_cloud, show_plotly_3d
+import plotly.graph_objects as go
 
 
 def recover_pose_from_E_cheirality(E, p0, p1, K=None, dist=None, distance_thresh=np.inf):
@@ -31,6 +32,7 @@ def recover_pose_from_E_cheirality(E, p0, p1, K=None, dist=None, distance_thresh
     best_R = None
     best_t = None
     counts = []
+    best_Xeu_xyz = None
 
     for (R, tt) in cands:
         P1 = np.hstack([R, tt])
@@ -55,8 +57,9 @@ def recover_pose_from_E_cheirality(E, p0, p1, K=None, dist=None, distance_thresh
             best_mask = mask
             best_R = R
             best_t = tt
+            best_Xeu_xyz = Xeu
 
-    return best_R, best_t, best_mask, counts, best_idx
+    return best_R, best_t, best_Xeu_xyz, best_mask, counts, best_idx
 
 
 def sampson_error(E, p0, p1, K):
@@ -126,7 +129,8 @@ def get_motion_two_images(K, img_first, img_second):
     p0i = p0[inl].astype(np.float64)
     p1i = p1[inl].astype(np.float64)
 
-    R, t, pose_mask, counts, idx = recover_pose_from_E_cheirality(E, p0i, p1i, K, dist=None, distance_thresh=1e6)
+    R, t, Xue_xyz, pose_mask, counts, idx = recover_pose_from_E_cheirality(E, p0i, p1i, K, dist=None, distance_thresh=1e6)
+    show_plotly_3d(Xue_xyz)
 
     U, S, Vt = np.linalg.svd(E)
     print("S:", S, "ratio s1/s2:", S[0] / S[1], "s3:", S[2])
@@ -165,6 +169,11 @@ def get_motion_two_images(K, img_first, img_second):
 
 
 if __name__ == '__main__':
+    #X = make_point_cloud(n=3000, seed=15)
+    #show_plotly_3d(X)
+
+
+
     input_dir = "video_input"
     video_name = "1.mp4"
     output_dir = "frames"

@@ -2,6 +2,133 @@ import cv2
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+
+
+def make_point_cloud(n=3000, seed=0):
+    rng = np.random.default_rng(seed)
+
+    # X,Y spread
+    x = rng.normal(0.0, 1.0, n)
+    y = rng.normal(0.0, 1.0, n)
+
+    # Positive depth (Z) with a wide range + structure
+    z = rng.gamma(shape=2.0, scale=2.0, size=n)  # mostly > 0, long tail
+
+    # Add a slight "tilt" so depth changes with x,y (looks more 3D)
+    z = z + 0.5 * x + 0.2 * y
+
+    # Keep only points with z>0
+    m = z > 0.1
+    return np.stack([x[m], y[m], z[m]], axis=1)
+
+
+
+def show_plotly_3d(X, marker_size=2, clip_percentile=98):
+    X = np.asarray(X, dtype=float)
+    m = np.isfinite(X).all(axis=1)
+    X = X[m]
+    if X.shape[0] == 0:
+        raise ValueError("No valid points to plot.")
+
+    # --- Robust outlier clipping (very important for triangulated clouds)
+    # Clip by Z and also by radial distance to kill absurd far points
+    z = X[:, 2]
+    z_lo = np.percentile(z, 1)
+    z_hi = np.percentile(z, clip_percentile)
+
+    r = np.linalg.norm(X, axis=1)
+    r_hi = np.percentile(r, clip_percentile)
+
+    keep = (z >= z_lo) & (z <= z_hi) & (r <= r_hi)
+    Xp = X[keep]
+    if Xp.shape[0] < 50:  # fallback if too aggressive
+        Xp = X
+
+    # --- Axis ranges (robust)
+    def prange(v, lo=1, hi=99, pad=0.05):
+        a = np.percentile(v, lo)
+        b = np.percentile(v, hi)
+        span = max(b - a, 1e-9)
+        p = span * pad
+        return [a - p, b + p]
+
+    xr = prange(Xp[:, 0], 1, 99)
+    yr = prange(Xp[:, 1], 1, 99)
+    zr = prange(Xp[:, 2], 1, 99)
+
+    # --- Color by depth (Z)
+    zc = Xp[:, 2]
+
+    fig = go.Figure(data=[go.Scatter3d(
+        x=Xp[:, 0],
+        y=Xp[:, 1],
+        z=Xp[:, 2],
+        mode="markers",
+        marker=dict(
+            size=marker_size,
+            color=zc,
+            colorscale="Viridis",
+            showscale=True,
+            colorbar=dict(title="Depth (Z)")
+        )
+    )])
+
+    # --- Better default camera: looking toward the cloud from "above and back"
+    camera = dict(
+        up=dict(x=0, y=1, z=0),
+        center=dict(x=0, y=0, z=0),
+        eye=dict(x=1.6, y=1.2, z=1.2)  # adjust if you want closer/farther
+    )
+
+    fig.update_layout(
+        title=f"Interactive 3D point cloud (showing {Xp.shape[0]}/{X.shape[0]} points after clipping)",
+        scene=dict(
+            xaxis=dict(title="X", range=xr, backgroundcolor="rgba(0,0,0,0)"),
+            yaxis=dict(title="Y", range=yr, backgroundcolor="rgba(0,0,0,0)"),
+            zaxis=dict(title="Z", range=zr, backgroundcolor="rgba(0,0,0,0)"),
+            aspectmode="data",
+            camera=camera
+        ),
+        margin=dict(l=0, r=0, t=50, b=0),
+        showlegend=False
+    )
+
+    fig.show()
+
+
+def show_plotly_3d_old(X):
+    # Color by depth (Z)
+    z = X[:, 2]
+
+    fig = go.Figure(data=[go.Scatter3d(
+        x=X[:, 0],
+        y=X[:, 1],
+        z=X[:, 2],
+        mode="markers",
+        marker=dict(
+            size=2,
+            color=z,            # depth coloring
+            colorscale="Viridis",
+            showscale=True,
+            colorbar=dict(title="Depth (Z)")
+        )
+    )])
+
+    fig.update_layout(
+        title="Interactive 3D point cloud (rotate / zoom / pan)",
+        scene=dict(
+            xaxis_title="X",
+            yaxis_title="Y",
+            zaxis_title="Z",
+            aspectmode="data"
+        ),
+        margin=dict(l=0, r=0, t=40, b=0)
+    )
+
+    fig.show()
+
+
 
 def load_video(input_dir, video_name, output_dir):
     video_path = os.path.join(input_dir, video_name)
