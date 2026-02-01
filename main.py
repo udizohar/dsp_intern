@@ -1,6 +1,3 @@
-import cv2
-import os
-import numpy as np
 from utils import *
 
 def recover_pose_from_E_cheirality(E, p0, p1, K=None, dist=None, distance_thresh=np.inf):
@@ -184,8 +181,13 @@ if __name__ == '__main__':
 
         if is_first_entry:
             first_pts_all = cv2.goodFeaturesToTrack(first_gray, maxCorners=3000, qualityLevel=0.01, minDistance=7)
+            is_first_entry = False
 
-        first_pts_all = get_motion_two_images(K, img_second, first_gray, second_gray, first_pts_all, lk_params)
-        print(first_pts_all.size)
+        second_pts_all = get_motion_two_images(K, img_second, first_gray, second_gray, first_pts_all, lk_params)
+        second_pts_all = second_pts_all.reshape(-1, 1, 2).astype(np.float32)
+        print(second_pts_all.shape[0])
+        first_pts_all = second_pts_all
+
+
         #efter:
 
