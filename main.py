@@ -75,7 +75,6 @@ def get_motion_two_images(K, img_first, img_second):
     second_gray = cv2.cvtColor(img_second, cv2.COLOR_BGR2GRAY)
 
     # Track points
-    #second_pts, status, err = cv2.calcOpticalFlowPyrLK(second_gray, first_gray, first_pts, None, **lk_params)
     second_pts, status, err = cv2.calcOpticalFlowPyrLK(first_gray, second_gray, first_pts, None, **lk_params)
     status = status.reshape(-1)
 
@@ -88,7 +87,6 @@ def get_motion_two_images(K, img_first, img_second):
     p0 = p0[good]
     p1 = p1[good]
 
-    #without undistortion
     E, inliers = cv2.findEssentialMat(p0, p1, K, method=cv2.RANSAC, prob=0.999, threshold=1.0)
     inl = inliers.ravel().astype(bool)
     p0i = p0[inl].astype(np.float64)
@@ -104,6 +102,12 @@ def get_motion_two_images(K, img_first, img_second):
     #E_proj = U @ np.diag([1, 1, 0]) @ Vt
 
     sampson_err = sampson_error(E, p0, p1, K)
+    sampson_err_threshold = 1e-4
+    sampson_count = np.count_nonzero(sampson_err > sampson_err_threshold)
+    sampson_percent = 100.0 * sampson_count / sampson_err.size
+
+    print("Epipolar constraint error (Sampson approximation) values above threshold percent = ", sampson_percent)
+
     draw_epipolar_lines(E, K, p0i, p1i, img_second)
 
     #_, R_rel, t_rel, pose_inliers = cv2.recoverPose(E, p0i, p1i, K)

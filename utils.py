@@ -226,15 +226,20 @@ def draw_epipolar_lines(E, K, p0i, p1i, img_second):
     show_bgr("epipolar lines", img2_show)
 
 def sampson_error(E, p0, p1, K):
+    #convert to normalize camera coordinates
     p0n = cv2.undistortPoints(p0.reshape(-1,1,2), K, None).reshape(-1,2)
     p1n = cv2.undistortPoints(p1.reshape(-1,1,2), K, None).reshape(-1,2)
 
+    #Homogeneous coordinates
     x1 = np.hstack([p0n, np.ones((len(p0n),1))])
     x2 = np.hstack([p1n, np.ones((len(p1n),1))])
 
-    Ex1  = x1 @ E.T
-    Etx2 = x2 @ E
+    Ex1  = x1 @ E.T #epipolar line of x1 in image 2
+    Etx2 = x2 @ E   #epipolar line of x2 in image 1
 
-    x2tEx1 = np.sum(x2 * Ex1, axis=1)
+    x2tEx1 = np.sum(x2 * Ex1, axis=1) #Epipolar constraint error
+
+    #(x2ᵀ E x1)² / (||∂(x2ᵀEx1)/∂x||²)
+    #first-order approximation of geometric reprojection error
     denom = Ex1[:,0]**2 + Ex1[:,1]**2 + Etx2[:,0]**2 + Etx2[:,1]**2
     return (x2tEx1**2) / denom
