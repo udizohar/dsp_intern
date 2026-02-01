@@ -1,10 +1,7 @@
 import cv2
 import os
 import numpy as np
-
-from utils import load_video, draw_pairs, show_bgr, make_point_cloud, show_plotly_3d
-import plotly.graph_objects as go
-
+from utils import *
 
 def recover_pose_from_E_cheirality(E, p0, p1, K=None, dist=None, distance_thresh=np.inf):
     """
@@ -60,38 +57,6 @@ def recover_pose_from_E_cheirality(E, p0, p1, K=None, dist=None, distance_thresh
             best_Xeu_xyz = Xeu
 
     return best_R, best_t, best_Xeu_xyz, best_mask, counts, best_idx
-
-
-def sampson_error(E, p0, p1, K):
-    p0n = cv2.undistortPoints(p0.reshape(-1,1,2), K, None).reshape(-1,2)
-    p1n = cv2.undistortPoints(p1.reshape(-1,1,2), K, None).reshape(-1,2)
-
-    x1 = np.hstack([p0n, np.ones((len(p0n),1))])
-    x2 = np.hstack([p1n, np.ones((len(p1n),1))])
-
-    Ex1  = x1 @ E.T
-    Etx2 = x2 @ E
-
-    x2tEx1 = np.sum(x2 * Ex1, axis=1)
-    denom = Ex1[:,0]**2 + Ex1[:,1]**2 + Etx2[:,0]**2 + Etx2[:,1]**2
-    return (x2tEx1**2) / denom
-
-def draw_epipolar_lines(E, K, p0i, p1i, img_second):
-    Kinv = np.linalg.inv(K)
-    F = Kinv.T @ E @ Kinv
-
-    lines2 = cv2.computeCorrespondEpilines(p0i.reshape(-1, 1, 2).astype(np.float32), 1, F).reshape(-1, 3)
-    # Each line: a*x + b*y + c = 0 in image2 pixels
-
-    img2_show = img_second.copy()
-    #for (a, b, c), pt2 in zip(lines2, p1i):  # take every 50th to reduce clutter
-    for (a, b, c), pt2 in zip(lines2[::50], p1i[::50]):  # take every 50th to reduce clutter
-        x0, x1 = 0, img2_show.shape[1] - 1
-        y0 = int((-c - a * x0) / b)
-        y1 = int((-c - a * x1) / b)
-        cv2.line(img2_show, (x0, y0), (x1, y1), (0, 255, 0), 1)
-        cv2.circle(img2_show, tuple(pt2.astype(int)), 3, (0, 0, 255), -1)
-    show_bgr("epipolar lines", img2_show)
 
 def get_motion_two_images(K, img_first, img_second):
     first_gray = cv2.cvtColor(img_first, cv2.COLOR_BGR2GRAY)
