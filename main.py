@@ -62,7 +62,7 @@ def get_motion_two_images(K, img_first, img_second):
     first_gray = cv2.cvtColor(img_first, cv2.COLOR_BGR2GRAY)
     #Shi-Tomasi Detector in default
     #useHarrisDetector=True
-    first_pts = cv2.goodFeaturesToTrack(first_gray, maxCorners=3000, qualityLevel=0.01, minDistance=7)
+    first_pts_all = cv2.goodFeaturesToTrack(first_gray, maxCorners=3000, qualityLevel=0.01, minDistance=7)
 
     R = np.eye(3, dtype=np.float64)
     t = np.zeros((3, 1), dtype=np.float64)
@@ -75,22 +75,22 @@ def get_motion_two_images(K, img_first, img_second):
     second_gray = cv2.cvtColor(img_second, cv2.COLOR_BGR2GRAY)
 
     # Track points
-    second_pts, status, err = cv2.calcOpticalFlowPyrLK(first_gray, second_gray, first_pts, None, **lk_params)
+    second_pts_all, status, err = cv2.calcOpticalFlowPyrLK(first_gray, second_gray, first_pts_all, None, **lk_params)
     status = status.reshape(-1)
 
-    p0 = first_pts[status == 1].reshape(-1, 2)
-    p1 = second_pts[status == 1].reshape(-1, 2)
+    p0_optical_status_ok = first_pts_all[status == 1].reshape(-1, 2)
+    p1_optical_status_ok = second_pts_all[status == 1].reshape(-1, 2)
     e = err[status == 1].reshape(-1)
 
     good = e < 20.0  # tune 10..30
 
-    p0 = p0[good]
-    p1 = p1[good]
+    p0_optical_status_ok = p0_optical_status_ok[good]
+    p1_optical_status_ok = p1_optical_status_ok[good]
 
-    E, inliers = cv2.findEssentialMat(p0, p1, K, method=cv2.RANSAC, prob=0.999, threshold=1.0)
+    E, inliers = cv2.findEssentialMat(p0_optical_status_ok, p1_optical_status_ok, K, method=cv2.RANSAC, prob=0.999, threshold=1.0)
     inl = inliers.ravel().astype(bool)
-    p0i = p0[inl].astype(np.float64)
-    p1i = p1[inl].astype(np.float64)
+    p0i = p0_optical_status_ok[inl].astype(np.float64)
+    p1i = p1_optical_status_ok[inl].astype(np.float64)
 
     R, t, Xue_xyz, pose_mask, counts, idx = recover_pose_from_E_cheirality(E, p0i, p1i, K, dist=None, distance_thresh=1e6)
     show_plotly_3d(Xue_xyz)
@@ -101,7 +101,7 @@ def get_motion_two_images(K, img_first, img_second):
     #If S[0]/S[1] is far from 1 or S[2] not small, you can “project” E to the closest essential:
     #E_proj = U @ np.diag([1, 1, 0]) @ Vt
 
-    sampson_err = sampson_error(E, p0, p1, K)
+    sampson_err = sampson_error(E, p0_optical_status_ok, p1_optical_status_ok, K)
     sampson_err_threshold = 1e-4
     sampson_count = np.count_nonzero(sampson_err > sampson_err_threshold)
     sampson_percent = 100.0 * sampson_count / sampson_err.size
@@ -133,7 +133,7 @@ def get_motion_two_images(K, img_first, img_second):
     prev_gray = gray
     prev_pts = p1.reshape(-1, 1, 2).astype(np.float32)
     '''
-    return p0, p1
+    return p0_optical_status_ok, p1_optical_status_ok
 
 
 
