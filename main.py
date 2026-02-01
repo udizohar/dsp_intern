@@ -55,7 +55,9 @@ def recover_pose_from_E_cheirality(E, p0, p1, K=None, dist=None, distance_thresh
 
     return best_R, best_t, best_Xeu_xyz, best_mask, best_count, counts, best_idx
 
-def get_motion_two_images(K, img_second, first_gray, second_gray, first_pts_all, lk_params):
+
+
+def get_motion_two_images(K, img_second, first_gray, second_gray, first_pts_all, lk_params, Xue_xyz_inliers_all):
     #Shi-Tomasi Detector in default
     #useHarrisDetector=True
     second_pts_all, status_all, optical_err_all = cv2.calcOpticalFlowPyrLK(first_gray, second_gray, first_pts_all, None, **lk_params)
@@ -84,6 +86,7 @@ def get_motion_two_images(K, img_second, first_gray, second_gray, first_pts_all,
     R, t, Xue_xyz, pose_mask_int, best_count, counts, idx = recover_pose_from_E_cheirality(E, p0_inliers_e_bool, p1_inliers_e_bool, K, dist=None, distance_thresh=1e6)
     pose_mask_bool = pose_mask_int.ravel().astype(bool)
     Xue_xyz_inliers = Xue_xyz[pose_mask_bool]
+    #Xue_xyz_inliers_all.extend(Xue_xyz_inliers) # X should be fixed with accumulated t ! something like X+=t_total
     show_plotly_3d(Xue_xyz_inliers)
 
 
@@ -127,7 +130,7 @@ def get_motion_two_images(K, img_second, first_gray, second_gray, first_pts_all,
 
     #draw_pairs(img_first, img_second, p0_inliers_e_bool, p1_inliers_e_bool, is_horizontal=False)
     #draw_pairs(img_first, img_second, p0_inliers_e_bool, p1_inliers_e_bool, is_horizontal=True)
-    return second_pts_all #p1_inliers_e_bool
+    return second_pts_all, Xue_xyz_inliers_all
 
 
 
@@ -162,6 +165,7 @@ if __name__ == '__main__':
 
     is_first_entry = True
     first_pts_all = None
+    Xue_xyz_inliers_all = []
 
     for first_frame_idx_base in range(int(images_count / frames_stride)):
         first_frame_idx = first_frame_idx_base * frames_stride
@@ -181,5 +185,6 @@ if __name__ == '__main__':
             first_pts_all = cv2.goodFeaturesToTrack(first_gray, maxCorners=3000, qualityLevel=0.01, minDistance=7)
             is_first_entry = False
 
-        second_pts_all = get_motion_two_images(K, img_second, first_gray, second_gray, first_pts_all, lk_params)
+        second_pts_all, Xue_xyz_inliers_all = get_motion_two_images(K, img_second, first_gray, second_gray, first_pts_all, lk_params, Xue_xyz_inliers_all)
         first_pts_all = second_pts_all
+
