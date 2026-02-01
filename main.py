@@ -58,25 +58,16 @@ def recover_pose_from_E_cheirality(E, p0, p1, K=None, dist=None, distance_thresh
 
     return best_R, best_t, best_Xeu_xyz, best_mask, best_count, counts, best_idx
 
-def get_motion_two_images(K, img_first, img_second):
-    first_gray = cv2.cvtColor(img_first, cv2.COLOR_BGR2GRAY)
+def get_motion_two_images(K, img_second, first_gray, second_gray, first_pts_all, lk_params):
     #Shi-Tomasi Detector in default
     #useHarrisDetector=True
-    first_pts_all = cv2.goodFeaturesToTrack(first_gray, maxCorners=3000, qualityLevel=0.01, minDistance=7)
+    second_pts_all, status_all, optical_err_all = cv2.calcOpticalFlowPyrLK(first_gray, second_gray, first_pts_all, None, **lk_params)
+    status_all = status_all.reshape(-1)
 
     R = np.eye(3, dtype=np.float64)
     t = np.zeros((3, 1), dtype=np.float64)
-
     traj = [t.copy()]
 
-    lk_params = dict(winSize=(21, 21), maxLevel=3,
-                     criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 30, 0.01))
-
-    second_gray = cv2.cvtColor(img_second, cv2.COLOR_BGR2GRAY)
-
-    # Track points
-    second_pts_all, status_all, optical_err_all = cv2.calcOpticalFlowPyrLK(first_gray, second_gray, first_pts_all, None, **lk_params)
-    status_all = status_all.reshape(-1)
 
     p0_optical_status_ok = first_pts_all[status_all == 1].reshape(-1, 2)
     p1_optical_status_ok = second_pts_all[status_all == 1].reshape(-1, 2)
@@ -139,7 +130,7 @@ def get_motion_two_images(K, img_first, img_second):
 
     #draw_pairs(img_first, img_second, p0_inliers_e_bool, p1_inliers_e_bool, is_horizontal=False)
     #draw_pairs(img_first, img_second, p0_inliers_e_bool, p1_inliers_e_bool, is_horizontal=True)
-    return
+    return p1_inliers_e_bool
 
 
 
@@ -168,6 +159,13 @@ if __name__ == '__main__':
 
     images_count = 163
     frames_stride = 10
+
+    lk_params = dict(winSize=(21, 21), maxLevel=3,
+                     criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 30, 0.01))
+
+    is_first_entry = True
+    first_pts_all = None
+
     for first_frame_idx_base in range(int(images_count / frames_stride)):
         first_frame_idx = first_frame_idx_base * frames_stride
         second_frame_idx = first_frame_idx + frames_stride
@@ -179,6 +177,15 @@ if __name__ == '__main__':
         img_first = cv2.imread(first_image_path)
         img_second = cv2.imread(second_image_path)
 
-        get_motion_two_images(K, img_first, img_second)
 
+        #before:
+        first_gray = cv2.cvtColor(img_first, cv2.COLOR_BGR2GRAY)
+        second_gray = cv2.cvtColor(img_second, cv2.COLOR_BGR2GRAY)
+
+        if is_first_entry:
+            first_pts_all = cv2.goodFeaturesToTrack(first_gray, maxCorners=3000, qualityLevel=0.01, minDistance=7)
+
+        first_pts_all = get_motion_two_images(K, img_second, first_gray, second_gray, first_pts_all, lk_params)
+        print(first_pts_all.size)
+        #efter:
 
