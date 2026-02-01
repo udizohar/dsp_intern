@@ -111,7 +111,7 @@ def get_motion_two_images(K, img_first, img_second):
     sampson_percent = 100.0 * sampson_count / sampson_err.size
     print("Epipolar constraint error (Sampson approximation) values above threshold percent = ", sampson_percent)
 
-    draw_epipolar_lines(E, K, p0_inliers_e_bool, p1_inliers_e_bool, img_second, stride=15)
+    draw_epipolar_lines(E, K, p0_inliers_e_bool, p1_inliers_e_bool, img_second, stride=5)
 
     #_, R_rel, t_rel, pose_inliers = cv2.recoverPose(E, p0i, p1i, K)
 
@@ -137,9 +137,8 @@ def get_motion_two_images(K, img_first, img_second):
     prev_pts = p1.reshape(-1, 1, 2).astype(np.float32)
     '''
 
-    draw_pairs(img_first, img_second, p0_inliers_e_bool, p1_inliers_e_bool, is_horizontal=False)
-    draw_pairs(img_first, img_second, p0_inliers_e_bool, p1_inliers_e_bool, is_horizontal=True)
-    #return p0_inliers_e_bool, p1_inliers_e_bool
+    #draw_pairs(img_first, img_second, p0_inliers_e_bool, p1_inliers_e_bool, is_horizontal=False)
+    #draw_pairs(img_first, img_second, p0_inliers_e_bool, p1_inliers_e_bool, is_horizontal=True)
     return
 
 
@@ -165,14 +164,21 @@ if __name__ == '__main__':
 
     recording_folder_name = "1"
     folder_path = os.path.join(output_dir, recording_folder_name)
-    first_frame_idx = 0
-    second_frame_idx = 1 # !!!!!!!!!!!!!!!!!!!
-    first_image_path = os.path.join(folder_path, f"frame_{first_frame_idx:06d}.png")
-    second_image_path = os.path.join(folder_path, f"frame_{second_frame_idx:06d}.png")
-    img_first = cv2.imread(first_image_path)
-    img_second = cv2.imread(second_image_path)
+    cv2.setRNGSeed(0)  # cosntant findEssentialMat randomness for debugging
 
-    cv2.setRNGSeed(0)  #cosntant findEssentialMat randomness for debugging
-    get_motion_two_images(K, img_first, img_second)
+    images_count = 163
+    frames_stride = 10
+    for first_frame_idx_base in range(int(images_count / frames_stride)):
+        first_frame_idx = first_frame_idx_base * frames_stride
+        second_frame_idx = first_frame_idx + frames_stride
+        if (first_frame_idx >= images_count):
+            break
+
+        first_image_path = os.path.join(folder_path, f"frame_{first_frame_idx:06d}.png")
+        second_image_path = os.path.join(folder_path, f"frame_{second_frame_idx:06d}.png")
+        img_first = cv2.imread(first_image_path)
+        img_second = cv2.imread(second_image_path)
+
+        get_motion_two_images(K, img_first, img_second)
 
 
