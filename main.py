@@ -127,7 +127,7 @@ def get_motion_two_images(K, img_second, first_gray, second_gray, first_pts_all,
 
     #draw_pairs(img_first, img_second, p0_inliers_e_bool, p1_inliers_e_bool, is_horizontal=False)
     #draw_pairs(img_first, img_second, p0_inliers_e_bool, p1_inliers_e_bool, is_horizontal=True)
-    return p1_inliers_e_bool
+    return second_pts_all #p1_inliers_e_bool
 
 
 
@@ -174,8 +174,6 @@ if __name__ == '__main__':
         img_first = cv2.imread(first_image_path)
         img_second = cv2.imread(second_image_path)
 
-
-        #before:
         first_gray = cv2.cvtColor(img_first, cv2.COLOR_BGR2GRAY)
         second_gray = cv2.cvtColor(img_second, cv2.COLOR_BGR2GRAY)
 
@@ -184,10 +182,4 @@ if __name__ == '__main__':
             is_first_entry = False
 
         second_pts_all = get_motion_two_images(K, img_second, first_gray, second_gray, first_pts_all, lk_params)
-        second_pts_all = second_pts_all.reshape(-1, 1, 2).astype(np.float32)
-        print(second_pts_all.shape[0])
         first_pts_all = second_pts_all
-
-
-        #efter:
-
