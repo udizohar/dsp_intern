@@ -108,7 +108,7 @@ def get_motion_two_images(K, img_first, img_second):
 
     print("Epipolar constraint error (Sampson approximation) values above threshold percent = ", sampson_percent)
 
-    draw_epipolar_lines(E, K, p0i, p1i, img_second)
+    draw_epipolar_lines(E, K, p0i, p1i, img_second, stride=15)
 
     #_, R_rel, t_rel, pose_inliers = cv2.recoverPose(E, p0i, p1i, K)
 

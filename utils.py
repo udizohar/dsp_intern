@@ -208,7 +208,7 @@ def draw_pairs(img_first, img_second, p0, p1, is_horizontal, max_lines=3000):
     return
 
 
-def draw_epipolar_lines(E, K, p0i, p1i, img_second):
+def draw_epipolar_lines(E, K, p0i, p1i, img_second, stride=50):
     Kinv = np.linalg.inv(K)
     F = Kinv.T @ E @ Kinv
 
@@ -217,7 +217,7 @@ def draw_epipolar_lines(E, K, p0i, p1i, img_second):
 
     img2_show = img_second.copy()
     #for (a, b, c), pt2 in zip(lines2, p1i):  # take every 50th to reduce clutter
-    for (a, b, c), pt2 in zip(lines2[::50], p1i[::50]):  # take every 50th to reduce clutter
+    for (a, b, c), pt2 in zip(lines2[::stride], p1i[::stride]):  # take every 50th to reduce clutter
         x0, x1 = 0, img2_show.shape[1] - 1
         y0 = int((-c - a * x0) / b)
         y1 = int((-c - a * x1) / b)
