@@ -58,7 +58,7 @@ def recover_pose_from_E_cheirality(E, p0, p1, K=None, dist=None, distance_thresh
 
 
 def get_motion_two_images(K, img_second, first_gray, second_gray, first_pts_all, lk_params,
-                          map_Xw): #, map_uv_prev, is_bootstrap
+                          map_Xw, map_uv_prev, is_first_entry):
     #Shi-Tomasi Detector in default
     #useHarrisDetector=True
     second_pts_all, status_all, optical_err_all = cv2.calcOpticalFlowPyrLK(first_gray, second_gray, first_pts_all, None, **lk_params)
@@ -136,7 +136,14 @@ def get_motion_two_images(K, img_second, first_gray, second_gray, first_pts_all,
 
     #draw_pairs(img_first, img_second, p0_inliers_e_bool, p1_inliers_e_bool, is_horizontal=False)
     #draw_pairs(img_first, img_second, p0_inliers_e_bool, p1_inliers_e_bool, is_horizontal=True)
-    return second_pts_all, map_Xw
+
+    if is_first_entry:
+        map_Xw = Xue_xyz_inliers.copy()
+        map_uv_prev = p1_inliers_pose.reshape(-1, 1, 2).astype(np.float32)  # for LK
+
+    Cw_curr = None
+
+    return second_pts_all, map_Xw, map_uv_prev, Cw_curr
 
 
 
@@ -171,7 +178,10 @@ if __name__ == '__main__':
 
     is_first_entry = True
     first_pts_all = None
-    Xue_xyz_inliers_all = []
+    map_Xw = []
+    map_uv_prev = None
+
+    traj_Cw = [np.zeros((3, 1), dtype=np.float64)]  # camera centers in world (locations vector), start at origin
 
     for first_frame_idx_base in range(int(images_count / frames_stride)):
         first_frame_idx = first_frame_idx_base * frames_stride
@@ -191,6 +201,12 @@ if __name__ == '__main__':
             first_pts_all = cv2.goodFeaturesToTrack(first_gray, maxCorners=3000, qualityLevel=0.01, minDistance=7)
             is_first_entry = False
 
-        second_pts_all, Xue_xyz_inliers_all = get_motion_two_images(K, img_second, first_gray, second_gray, first_pts_all, lk_params, Xue_xyz_inliers_all)
+
+        second_pts_all, map_Xw, map_uv_prev, Cw_curr  = get_motion_two_images(K, img_second, first_gray, second_gray, first_pts_all, lk_params,
+                                                                    map_Xw, map_uv_prev, is_first_entry)
+
+        traj_Cw.append(Cw_curr)
         first_pts_all = second_pts_all
 
+        if is_first_entry:
+            is_first_entry = False
