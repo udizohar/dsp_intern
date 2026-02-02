@@ -57,7 +57,8 @@ def recover_pose_from_E_cheirality(E, p0, p1, K=None, dist=None, distance_thresh
 
 
 
-def get_motion_two_images(K, img_second, first_gray, second_gray, first_pts_all, lk_params, Xue_xyz_inliers_all):
+def get_motion_two_images(K, img_second, first_gray, second_gray, first_pts_all, lk_params,
+                          map_Xw): #, map_uv_prev, is_bootstrap
     #Shi-Tomasi Detector in default
     #useHarrisDetector=True
     second_pts_all, status_all, optical_err_all = cv2.calcOpticalFlowPyrLK(first_gray, second_gray, first_pts_all, None, **lk_params)
@@ -86,6 +87,11 @@ def get_motion_two_images(K, img_second, first_gray, second_gray, first_pts_all,
     R, t, Xue_xyz, pose_mask_int, best_count, counts, idx = recover_pose_from_E_cheirality(E, p0_inliers_e_bool, p1_inliers_e_bool, K, dist=None, distance_thresh=1e6)
     pose_mask_bool = pose_mask_int.ravel().astype(bool)
     Xue_xyz_inliers = Xue_xyz[pose_mask_bool]
+
+    p0_inliers_pose = p0_inliers_e_bool[pose_mask_bool]
+    p1_inliers_pose = p1_inliers_e_bool[pose_mask_bool]
+
+
     #Xue_xyz_inliers_all.extend(Xue_xyz_inliers) # X should be fixed with accumulated t ! something like X+=t_total
     show_plotly_3d(Xue_xyz_inliers)
 
@@ -96,13 +102,13 @@ def get_motion_two_images(K, img_second, first_gray, second_gray, first_pts_all,
     #If S[0]/S[1] is far from 1 or S[2] not small, you can “project” E to the closest essential:
     #E_proj = U @ np.diag([1, 1, 0]) @ Vt
 
-    sampson_err = sampson_error(E, p0_inliers_e_bool, p1_inliers_e_bool, K)
+    sampson_err = sampson_error(E, p0_inliers_pose, p1_inliers_pose, K)
     sampson_err_threshold = 1e-4
     sampson_count = np.count_nonzero(sampson_err > sampson_err_threshold)
     sampson_percent = 100.0 * sampson_count / sampson_err.size
     print("Epipolar constraint error (Sampson approximation) values above threshold percent = ", sampson_percent)
 
-    draw_epipolar_lines(E, K, p0_inliers_e_bool, p1_inliers_e_bool, img_second, stride=5)
+    draw_epipolar_lines(E, K, p0_inliers_pose, p1_inliers_pose, img_second, stride=5)
 
     #_, R_rel, t_rel, pose_inliers = cv2.recoverPose(E, p0i, p1i, K)
 
@@ -130,7 +136,7 @@ def get_motion_two_images(K, img_second, first_gray, second_gray, first_pts_all,
 
     #draw_pairs(img_first, img_second, p0_inliers_e_bool, p1_inliers_e_bool, is_horizontal=False)
     #draw_pairs(img_first, img_second, p0_inliers_e_bool, p1_inliers_e_bool, is_horizontal=True)
-    return second_pts_all, Xue_xyz_inliers_all
+    return second_pts_all, map_Xw
 
 
 
