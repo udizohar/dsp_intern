@@ -56,9 +56,53 @@ def recover_pose_from_E_cheirality(E, p0, p1, K=None, dist=None, distance_thresh
     return best_R, best_t, best_Xeu_xyz, best_mask, best_count, counts, best_idx
 
 
+def get_motion_two_images_not_first(K, img_second, first_gray, second_gray, first_pts_all, lk_params,
+                          map_Xw, map_uv_prev):
+
+    # 1) track the SAME map pixels from prev frame to current frame
+    uv_next, st, err = cv2.calcOpticalFlowPyrLK(first_gray, second_gray, map_uv_prev, None, **lk_params)
+    st = st.reshape(-1).astype(bool)
+    err = err.reshape(-1)
+
+    # 2) filter
+    keep = st & (err < 10.0)  # same threshold style you already use :contentReference[oaicite:5]{index=5}
+    Xw = np.asarray(map_Xw)[keep].astype(np.float64)
+    uv = uv_next.reshape(-1, 2)[keep].astype(np.float64)
+
+    # 3) PnP-RANSAC (pose of CURRENT camera in the world of the map)
+    ok, rvec, tvec, inl = cv2.solvePnPRansac(
+        Xw, uv, K, None,
+        iterationsCount=200,
+        reprojectionError=3.0,
+        confidence=0.999,
+        flags=cv2.SOLVEPNP_EPNP
+    )
+    if (not ok) or (inl is None) or (len(inl) < 15):
+        # fallback: do your old E path (optional)
+        pass
+    else:
+        Rcw, _ = cv2.Rodrigues(rvec)
+        tcw = tvec.reshape(3, 1)
+        Cw = -Rcw.T @ tcw
+
+        # 4) update map_uv_prev for next iteration (keep inliers only)
+        inl = inl.reshape(-1)
+        map_Xw = Xw[inl]
+        map_uv_prev = uv_next.reshape(-1, 1, 2)[keep][inl].astype(np.float32)
+
+        # return
+        return second_pts_all, map_Xw, map_uv_prev, Cw
+
+
 
 def get_motion_two_images(K, img_second, first_gray, second_gray, first_pts_all, lk_params,
                           map_Xw, map_uv_prev, is_first_entry):
+
+    if (not is_first_entry) and (map_Xw is not None) and (map_uv_prev is not None) and (len(map_Xw) >= 20):
+        return get_motion_two_images_not_first(K, img_second, first_gray, second_gray, first_pts_all, lk_params,
+                          map_Xw, map_uv_prev)
+
+
     #Shi-Tomasi Detector in default
     #useHarrisDetector=True
     second_pts_all, status_all, optical_err_all = cv2.calcOpticalFlowPyrLK(first_gray, second_gray, first_pts_all, None, **lk_params)
@@ -137,13 +181,16 @@ def get_motion_two_images(K, img_second, first_gray, second_gray, first_pts_all,
     #draw_pairs(img_first, img_second, p0_inliers_e_bool, p1_inliers_e_bool, is_horizontal=False)
     #draw_pairs(img_first, img_second, p0_inliers_e_bool, p1_inliers_e_bool, is_horizontal=True)
 
+    Cw = None
+
     if is_first_entry:
         map_Xw = Xue_xyz_inliers.copy()
         map_uv_prev = p1_inliers_pose.reshape(-1, 1, 2).astype(np.float32)  # for LK
+        Cw = -R.T @ t
 
-    Cw_curr = None
 
-    return second_pts_all, map_Xw, map_uv_prev, Cw_curr
+
+    return second_pts_all, map_Xw, map_uv_prev, Cw
 
 
 
@@ -199,8 +246,6 @@ if __name__ == '__main__':
 
         if is_first_entry:
             first_pts_all = cv2.goodFeaturesToTrack(first_gray, maxCorners=3000, qualityLevel=0.01, minDistance=7)
-            is_first_entry = False
-
 
         second_pts_all, map_Xw, map_uv_prev, Cw_curr  = get_motion_two_images(K, img_second, first_gray, second_gray, first_pts_all, lk_params,
                                                                     map_Xw, map_uv_prev, is_first_entry)
